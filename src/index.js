@@ -1,4 +1,10 @@
 import { autorun, reaction } from 'mobx'
+import { fromStream } from 'mobx-utils'
+
+// mobx-utils
+export * from 'mobx-utils'
+
+// subscribe-aware helpers
 
 export function watch(fn): Function {
   const dispose = autorun(fn)
@@ -12,7 +18,39 @@ export function react(fn, onReact, immediately = false): Function {
   return dispose
 }
 
-export default {
-  watch,
-  react,
+export function query(parent, property, { initializer, ...descriptor }) {
+  return {
+    ...descriptor,
+    value: function() {
+      const value = initializer.call(this)(arguments)
+      // add some helpers
+      Object.defineProperties(value, {
+        'promise': {
+          get: () => new Promise((resolve, reject) => {
+            value.$.take(1).subscribe(resolve, reject)
+          })
+        },
+        'observable': {
+          get: () => fromStream(value.$)
+        },
+        'stream': {
+          get: () => value.$
+        }
+      })
+      return value
+    }
+  }
+}
+
+export function observeStreams(object) {
+  for (const key of Object.keys(object)) {
+    for (const subKey of Object.keys(object[key])) {
+      const val = object[key][subKey]
+      if (val && val.$) {
+        console.log('found one with $')
+        object[key][subKey] = fromStream(val.$)
+      }
+    }
+  }
+  return object
 }
