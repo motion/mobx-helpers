@@ -44,12 +44,9 @@ export function query(parent, property, { initializer, ...descriptor }) {
 
 export function observeStreams(object) {
   for (const key of Object.keys(object)) {
-    for (const subKey of Object.keys(object[key])) {
-      const val = object[key][subKey]
-      if (val && val.$) {
-        console.log('found one with $')
-        object[key][subKey] = fromStream(val.$)
-      }
+    const val = object[key]
+    if (val && val.$) {
+      object[key] = fromStream(val.$)
     }
   }
   return object
