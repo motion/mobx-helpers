@@ -1,6 +1,6 @@
 {
   "name": "motion-mobx-helpers",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "main": "lib/index.js",
   "scripts": {
     "build": "rm -r lib; babel src --out-dir lib",
