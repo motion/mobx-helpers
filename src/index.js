@@ -23,19 +23,11 @@ export function query(parent, property, { initializer, ...descriptor }) {
     ...descriptor,
     value: function() {
       const value = initializer.call(this)(arguments)
-      // add some helpers
+      // helpers
       Object.defineProperties(value, {
-        'promise': {
-          get: () => new Promise((resolve, reject) => {
-            value.$.take(1).subscribe(resolve, reject)
-          })
-        },
-        'observable': {
-          get: () => fromStream(value.$)
-        },
-        'stream': {
-          get: () => value.$
-        }
+        'promise': { get: () => value.exec() },
+        'observable': { get: () => fromStream(value.$) },
+        'stream': { get: () => value.$ },
       })
       return value
     }
