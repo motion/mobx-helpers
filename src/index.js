@@ -20,56 +20,61 @@ export function react(fn, onReact, immediately = false): Function {
   return dispose
 }
 
-function wrap(fn) {
-  return function() {
-    const value = fn.apply(this, arguments)
+function valueWrap(value) {
+  let stream = null
+  let observable = null
 
-    let stream = null
-    let observable = null
-
-    function getStream() {
-      if (!stream) {
-        stream = value.$
-        stream.subscribe()
-      }
-      return stream
+  function getStream() {
+    if (!stream) {
+      stream = value.$
+      stream.subscribe()
     }
-
-    function getObservable() {
-      observable = observable || fromStream(getStream())
-      return observable
-    }
-
-    // helpers
-    Object.defineProperties(value || {}, {
-      promise: {
-        get: () => value.exec(),
-      },
-      observable: {
-        get: () => getObservable(),
-      },
-      current: {
-        get: () => getObservable().current,
-      },
-      stream: {
-        get: () => getStream()
-      },
-    })
-
-    return value
+    return stream
   }
+
+  function getObservable() {
+    observable = observable || fromStream(getStream())
+    return observable
+  }
+
+  // helpers
+  Object.defineProperties(value || {}, {
+    promise: {
+      get: () => value.exec(),
+    },
+    observable: {
+      get: () => getObservable(),
+    },
+    current: {
+      get: () => getObservable().current,
+    },
+    stream: {
+      get: () => getStream()
+    },
+  })
+
+  return value
+}
+
+function wrap(fn) {
+  return
 }
 
 export function query(parent, property, descriptor) {
+  const { initializer } = descriptor
   console.log(descriptor)
-  if (descriptor.initializer) {
-    descriptor.initializer = null
-    descriptor.value = wrap(descriptor.initializer)
+  if (initializer) {
+    delete descriptor.initializer
+    descriptor.value = function() {
+      return valueWrap(initializer.call(this)(arguments))
+    }
   }
-  if (descriptor.value) {
-    descriptor.value = wrap(descriptor.value)
+  else if (descriptor.value) {
+    const value = descriptor.value
+    descriptor.value = function() {
+      return valueWrap(value.apply(this, arguments))
+    }
   }
-  console.log('done for now')
   return descriptor
 }
 
