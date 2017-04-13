@@ -1,6 +1,8 @@
 import { autorun, reaction } from 'mobx'
 import { fromStream } from 'mobx-utils'
 
+window.fromStream = fromStream
+
 // mobx-utils
 export * from 'mobx-utils'
 
@@ -18,20 +20,57 @@ export function react(fn, onReact, immediately = false): Function {
   return dispose
 }
 
-export function query(parent, property, { initializer, ...descriptor }) {
-  return {
-    ...descriptor,
-    value: function() {
-      const value = initializer.call(this)(arguments)
-      // helpers
-      Object.defineProperties(value, {
-        'promise': { get: () => value.exec() },
-        'observable': { get: () => fromStream(value.$) },
-        'stream': { get: () => value.$ },
-      })
-      return value
+function wrap(fn) {
+  return function() {
+    const value = fn.apply(this, arguments)
+
+    let stream = null
+    let observable = null
+
+    function getStream() {
+      if (!stream) {
+        stream = value.$
+        stream.subscribe()
+      }
+      return stream
     }
+
+    function getObservable() {
+      observable = observable || fromStream(getStream())
+      return observable
+    }
+
+    // helpers
+    Object.defineProperties(value || {}, {
+      promise: {
+        get: () => value.exec(),
+      },
+      observable: {
+        get: () => getObservable(),
+      },
+      current: {
+        get: () => getObservable().current,
+      },
+      stream: {
+        get: () => getStream()
+      },
+    })
+
+    return value
   }
+}
+
+export function query(parent, property, descriptor) {
+  console.log(descriptor)
+  if (descriptor.initializer) {
+    descriptor.initializer = null
+    descriptor.value = wrap(descriptor.initializer)
+  }
+  if (descriptor.value) {
+    descriptor.value = wrap(descriptor.value)
+  }
+  console.log('done for now')
+  return descriptor
 }
 
 export function observeStreams(object) {
