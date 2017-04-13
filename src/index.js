@@ -56,17 +56,12 @@ function valueWrap(value) {
   return value
 }
 
-function wrap(fn) {
-  return
-}
-
 export function query(parent, property, descriptor) {
   const { initializer } = descriptor
-  console.log(descriptor)
   if (initializer) {
     delete descriptor.initializer
     descriptor.value = function() {
-      return valueWrap(initializer.call(this)(arguments))
+      return valueWrap(initializer.call(this)(...arguments))
     }
   }
   else if (descriptor.value) {
