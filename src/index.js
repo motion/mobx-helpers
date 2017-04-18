@@ -27,7 +27,6 @@ function valueWrap(value) {
   function getStream() {
     if (!stream) {
       stream = value.$
-      stream.subscribe()
     }
     return stream
   }
@@ -49,7 +48,7 @@ function valueWrap(value) {
       get: () => getObservable().current,
     },
     stream: {
-      get: () => getStream()
+      get: () => getStream(),
     },
   })
 
@@ -60,11 +59,11 @@ export function query(parent, property, descriptor) {
   const { initializer } = descriptor
   if (initializer) {
     delete descriptor.initializer
-    descriptor.value = function() {
-      return valueWrap(initializer.call(this)(...arguments))
+    descriptor.value = function(...args) {
+      const value = initializer.call(this).apply(this, args)
+      return valueWrap(value)
     }
-  }
-  else if (descriptor.value) {
+  } else if (descriptor.value) {
     const value = descriptor.value
     descriptor.value = function() {
       return valueWrap(value.apply(this, arguments))
