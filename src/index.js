@@ -15,11 +15,9 @@ export function react(fn, onReact, immediately = false): Function {
 }
 
 // @query value wrapper
-let id = 0
 function valueWrap(valueGet: Function) {
-  id++
   const obsrv = observable.box(null)
-  let value = null
+  let value = {}
   let subscriber = null
 
   const runner = autorun(() => {
@@ -32,11 +30,7 @@ function valueWrap(valueGet: Function) {
 
     if (value.$) {
       // sub to values
-      subscriber = value.$.subscribe({
-        next: value => {
-          obsrv.set(value)
-        },
-      })
+      subscriber = value.$.subscribe(value => obsrv.set(value))
     }
   })
 
