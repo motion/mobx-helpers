@@ -1,10 +1,4 @@
-import { autorun, reaction } from 'mobx'
-import { fromStream } from 'mobx-utils'
-
-window.fromStream = fromStream
-
-// mobx-utils
-export * from 'mobx-utils'
+import { observable, autorun, reaction } from 'mobx'
 
 // subscribe-aware helpers
 
@@ -20,35 +14,51 @@ export function react(fn, onReact, immediately = false): Function {
   return dispose
 }
 
-function valueWrap(value) {
-  let stream = null
-  let observable = null
+// @query value wrapper
+let id = 0
+function valueWrap(valueGet: Function) {
+  id++
+  const obsrv = observable.box(null)
+  let value = null
+  let subscriber = null
 
-  function getStream() {
-    if (!stream) {
-      stream = value.$
+  const runner = autorun(() => {
+    // unsub from previous
+    if (subscriber) {
+      subscriber.dispose()
     }
-    return stream
-  }
 
-  function getObservable() {
-    observable = observable || fromStream(getStream())
-    return observable
-  }
+    value = valueGet() || {}
+
+    if (value.$) {
+      // sub to values
+      subscriber = value.$.subscribe({
+        next: value => {
+          obsrv.set(value)
+        },
+      })
+    }
+  })
 
   // helpers
-  Object.defineProperties(value || {}, {
+  Object.defineProperties(value, {
     promise: {
       get: () => value.exec(),
     },
     observable: {
-      get: () => getObservable(),
+      get: () => obsrv,
     },
     current: {
-      get: () => getObservable().current,
+      get: () => obsrv.get(),
     },
     stream: {
-      get: () => getStream(),
+      get: () => value.$,
+    },
+    dispose: {
+      get: () => () => {
+        subscriber.dispose()
+        runner.dispose()
+      },
     },
   })
 
@@ -60,24 +70,13 @@ export function query(parent, property, descriptor) {
   if (initializer) {
     delete descriptor.initializer
     descriptor.value = function(...args) {
-      const value = initializer.call(this).apply(this, args)
-      return valueWrap(value)
+      return valueWrap(() => initializer.call(this).apply(this, args))
     }
   } else if (descriptor.value) {
     const value = descriptor.value
-    descriptor.value = function() {
-      return valueWrap(value.apply(this, arguments))
+    descriptor.value = function(...args) {
+      return valueWrap(() => value.apply(this, args))
     }
   }
   return descriptor
-}
-
-export function observeStreams(object) {
-  for (const key of Object.keys(object)) {
-    const val = object[key]
-    if (val && val.$) {
-      object[key] = fromStream(val.$)
-    }
-  }
-  return object
 }
