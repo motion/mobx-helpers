@@ -34,6 +34,9 @@ function valueWrap(valueGet: Function) {
 
   // helpers
   Object.defineProperties(value, {
+    $isQuery: {
+      get: () => true,
+    },
     promise: {
       get: () => value.exec(),
     },
