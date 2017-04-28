@@ -19,12 +19,10 @@ function valueWrap(valueGet: Function) {
   const obsrv = observable.box(null)
   let value = {}
   let subscriber = null
+  const endPrevious = () => subscriber && subscriber.complete()
 
   const runner = autorun(() => {
-    // unsub from previous
-    if (subscriber) {
-      subscriber.dispose()
-    }
+    endPrevious()
 
     value = valueGet() || {}
 
@@ -50,7 +48,7 @@ function valueWrap(valueGet: Function) {
     },
     dispose: {
       get: () => () => {
-        subscriber.dispose()
+        endPrevious()
         runner.dispose()
       },
     },
@@ -61,6 +59,7 @@ function valueWrap(valueGet: Function) {
 
 export function query(parent, property, descriptor) {
   const { initializer } = descriptor
+
   if (initializer) {
     delete descriptor.initializer
     descriptor.value = function(...args) {
@@ -72,5 +71,6 @@ export function query(parent, property, descriptor) {
       return valueWrap(() => value.apply(this, args))
     }
   }
+
   return descriptor
 }
