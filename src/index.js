@@ -41,7 +41,7 @@ function valueWrap(valueGet: Function) {
       get: () => obsrv,
     },
     current: {
-      get: () => obsrv.get(),
+      get: () => obsrv.get() || null,
     },
     stream: {
       get: () => value.$,
