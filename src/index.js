@@ -13,19 +13,22 @@ export function react(fn, onReact, immediately = false): Function {
   this.subscriptions.add(dispose)
   return dispose
 }
-
 // @query value wrapper
 function valueWrap(valueGet: Function) {
   const obsrv = observable.box(null)
-  let value = {}
+  let value = valueGet() || {}
+
+  // already query!
+  if (value.$isQuery) {
+    return value
+  }
+
+  // subscribe and update
   let subscriber = null
-  const endPrevious = () => subscriber && subscriber.complete()
-
+  const finishSubscribe = () => subscriber && subscriber.complete()
   const runner = autorun(() => {
-    endPrevious()
-
+    finishSubscribe()
     value = valueGet() || {}
-
     if (value.$) {
       // sub to values
       subscriber = value.$.subscribe(value => obsrv.set(value))
@@ -35,23 +38,17 @@ function valueWrap(valueGet: Function) {
   // helpers
   Object.defineProperties(value, {
     $isQuery: {
-      get: () => true,
+      value: true,
     },
     promise: {
       get: () => value.exec(),
     },
-    observable: {
-      get: () => obsrv,
-    },
     current: {
       get: () => obsrv.get() || null,
     },
-    stream: {
-      get: () => value.$,
-    },
     dispose: {
-      get: () => () => {
-        endPrevious()
+      value() {
+        finishSubscribe()
         runner.dispose()
       },
     },
@@ -61,15 +58,15 @@ function valueWrap(valueGet: Function) {
 }
 
 export function query(parent, property, descriptor) {
-  const { initializer } = descriptor
+  const { initializer, value } = descriptor
 
   if (initializer) {
-    delete descriptor.initializer
-    descriptor.value = function(...args) {
-      return valueWrap(() => initializer.call(this).apply(this, args))
+    descriptor.initializer = function() {
+      return function(...args) {
+        return valueWrap(() => initializer.call(this).apply(this, args))
+      }
     }
-  } else if (descriptor.value) {
-    const value = descriptor.value
+  } else if (value) {
     descriptor.value = function(...args) {
       return valueWrap(() => value.apply(this, args))
     }
